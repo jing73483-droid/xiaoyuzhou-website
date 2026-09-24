@@ -8,22 +8,12 @@
  root.classList.add('world-ready');
  async function go(index,point){
   if(index===current||busy||index<0||index>=scenes.length)return;
-  busy=true;const old=scenes[current],next=scenes[index],id=++sequence;
-  // 等待目标图片解码，旧画面始终留在屏幕上，不以黑色占位。
+  busy=true;const old=scenes[current],next=scenes[index];
   await Promise.allSettled([...next.querySelectorAll('img')].map(img=>img.decode?.()));
-  const stage=old.parentElement,rect=stage.getBoundingClientRect(),cut=Math.max(20,Math.min(80,((point?.x??innerWidth*.5)-rect.left)/rect.width*100));
-  const layer=document.createElement('div');layer.className='fracture-layer';layer.setAttribute('aria-hidden','true');layer.inert=true;
-  const seam=[[cut-2,0],[cut+1,22],[cut-2,43],[cut+2,61],[cut-1,80],[cut+2,100]];
-  const left='polygon(0% 0%, '+seam.map(([x,y])=>`${x}% ${y}%`).join(', ')+', 0% 100%)';
-  const right='polygon('+seam.map(([x,y])=>`${x}% ${y}%`).join(', ')+', 100% 100%, 100% 0%)';
-  if(!reduce.matches){for(let side=0;side<2;side++){const shell=document.createElement('div');shell.className='fracture-piece';shell.style.clipPath=side?right:left;shell.style.transformOrigin=side?'100% 50%':'0% 50%';const copy=old.cloneNode(true);copy.removeAttribute('id');copy.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));copy.classList.add('fracture-copy');const originals=[old,...old.querySelectorAll('*')],copies=[copy,...copy.querySelectorAll('*')];originals.forEach((el,i)=>{if(!el.getAnimations().length)return;const c=getComputedStyle(el);copies[i].style.animation='none';for(const prop of ['transform','translate','rotate','scale','opacity','filter','margin-top'])copies[i].style.setProperty(prop,c.getPropertyValue(prop));});copy.inert=true;shell.append(copy);layer.append(shell);}stage.append(layer);layer.querySelectorAll('.fracture-copy').forEach(copy=>copy.scrollTop=old.scrollTop);}
-  old.classList.remove('world-current');old.inert=true;old.setAttribute('aria-hidden','true');
-  next.classList.add('world-current');next.inert=true;next.setAttribute('aria-hidden','false');next.scrollTop=0;
-  root.classList.add('world-warping');
-  const animations=[...layer.children].map((piece,side)=>piece.animate([{transform:'rotateY(0deg)'},{transform:`rotateY(${side?-105:105}deg)`}],{duration:950,easing:'cubic-bezier(.65,0,.2,1)',fill:'forwards'}));
-  await Promise.allSettled(animations.map(a=>a.finished));
-  if(id!==sequence)return;layer.remove();current=index;busy=false;next.inert=false;root.classList.remove('world-warping');
-  buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));window.dispatchEvent(new CustomEvent('world-arrived',{detail:{index}}));const heading=next.querySelector('h2');heading.tabIndex=-1;heading.focus({preventScroll:true});window.dispatchEvent(new Event('resize'));
+  // 下一场景渐入期间，旧场景始终保持完全不透明。
+  old.inert=true;next.scrollTop=0;next.classList.add('world-arriving');next.inert=true;next.setAttribute('aria-hidden','false');root.classList.add('world-warping');
+  if(!reduce.matches){const animation=next.animate([{opacity:0,transform:'scale(1.025)'},{opacity:1,transform:'scale(1)'}],{duration:800,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});await animation.finished.catch(()=>{});next.classList.add('world-current');next.classList.remove('world-arriving');animation.cancel();}else{next.classList.add('world-current');next.classList.remove('world-arriving');}
+  old.classList.remove('world-current');old.setAttribute('aria-hidden','true');current=index;busy=false;next.inert=false;root.classList.remove('world-warping');buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));window.dispatchEvent(new CustomEvent('world-arrived',{detail:{index}}));const heading=next.querySelector('h2');heading.tabIndex=-1;heading.focus({preventScroll:true});window.dispatchEvent(new Event('resize'));
  }
  panel.addEventListener('click',e=>{const b=e.target.closest('[data-world]');if(b)go(Number(b.dataset.world));});
  document.querySelector('#universe-content').addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a||a.hasAttribute('data-return-portal'))return;const index=scenes.findIndex(s=>'#'+s.id===a.getAttribute('href'));if(index>=0){e.preventDefault();go(index);}});
