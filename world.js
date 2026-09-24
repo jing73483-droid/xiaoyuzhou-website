@@ -2,19 +2,28 @@
 (()=>{
  const scenes=[...document.querySelectorAll('#universe-content main>section')],root=document.documentElement,reduce=matchMedia('(prefers-reduced-motion: reduce)');
  const names=['声音原野','共鸣海岸','好奇星系','下一站，小宇宙'];let current=0,busy=false,timer=0,sequence=0;
- // 24 帧纵向 Sprite Sheet。每个像素取多个圆的有向距离并集，再叠加连续噪声。
- // smoothstep 将距离边界映射为连续透明度，产生柔软的墨水扩散前沿。
- const frames=24,w=256,h=144,atlas=document.createElement('canvas');atlas.width=w;atlas.height=h*frames;
- const ctx=atlas.getContext('2d');let atlasURL='';
- if(ctx){const seeds=[[.47,.48,1],[.32,.38,.8],[.66,.61,.75],[.57,.25,.6],[.24,.68,.55]],img=ctx.createImageData(w,h);for(let f=0;f<frames;f++){const p=f/(frames-1);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const nx=x/w,ny=y/h;let d=10;for(const [sx,sy,speed] of seeds)d=Math.min(d,Math.hypot((nx-sx)*1.5,ny-sy)-(p*1.55-.08)*speed);const noise=Math.sin(nx*33+Math.sin(ny*19)*2)*.025+Math.sin(ny*47+nx*21)*.018;let a=Math.max(0,Math.min(1,(.055-d-noise)/.11));a=a*a*(3-2*a);const k=(y*w+x)*4;img.data[k]=img.data[k+1]=img.data[k+2]=255;img.data[k+3]=f===0?0:f===frames-1?255:Math.round(a*255);}ctx.putImageData(img,0,f*h);}atlasURL=atlas.toDataURL();root.style.setProperty('--ink-atlas',`url("${atlasURL}")`);}
  const panel=document.createElement('div');panel.className='world-panel';panel.innerHTML='<span class="world-caption">小宇宙 · 声音漫游</span><nav aria-label="选择声音世界">'+names.map((n,i)=>`<button type="button" data-world="${i}" aria-pressed="${i===0}"><small>0${i+1}</small><span>${n}</span></button>`).join('')+'</nav><span class="world-help">选择坐标，进入另一片声音世界</span>';document.querySelector('#universe-content').append(panel);
  const buttons=[...panel.querySelectorAll('button')];
  scenes.forEach((s,i)=>{s.classList.add('world-scene');s.classList.toggle('world-current',i===0);s.inert=i!==0;s.setAttribute('aria-hidden',String(i!==0));s.querySelectorAll('.reveal').forEach(e=>e.classList.add('visible'));});
  root.classList.add('world-ready');
- function go(index,point){if(index===current||busy||index<0||index>=scenes.length)return;busy=true;root.classList.add('world-warping');window.dispatchEvent(new CustomEvent('world-warp',{detail:point||{x:innerWidth*.8,y:innerHeight*.72}}));const id=++sequence,old=scenes[current],next=scenes[index];old.inert=true;old.setAttribute('aria-hidden','true');next.classList.add('world-arriving');next.inert=false;next.setAttribute('aria-hidden','false');next.scrollTop=0;buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));const start=performance.now();
-  function finish(){if(id!==sequence)return;old.classList.remove('world-current');next.classList.remove('world-arriving');next.classList.add('world-current');next.style.removeProperty('mask-position');next.style.removeProperty('-webkit-mask-position');current=index;busy=false;root.classList.remove('world-warping');window.dispatchEvent(new CustomEvent('world-arrived',{detail:{index}}));const heading=next.querySelector('h2');heading.tabIndex=-1;heading.focus({preventScroll:true});window.dispatchEvent(new Event('resize'));}
-  function tick(now){if(id!==sequence)return;const p=Math.min(1,(now-start)/1250),f=Math.min(frames-1,Math.floor(p*frames));next.style.maskPosition=`0 ${f/(frames-1)*100}%`;next.style.webkitMaskPosition=`0 ${f/(frames-1)*100}%`;if(p<1)timer=requestAnimationFrame(tick);else finish();}
-  if(reduce.matches||!atlasURL)finish();else timer=requestAnimationFrame(tick);
+ async function go(index,point){
+  if(index===current||busy||index<0||index>=scenes.length)return;
+  busy=true;const old=scenes[current],next=scenes[index],id=++sequence;
+  // 等待目标图片解码，旧画面始终留在屏幕上，不以黑色占位。
+  await Promise.allSettled([...next.querySelectorAll('img')].map(img=>img.decode?.()));
+  const stage=old.parentElement,rect=stage.getBoundingClientRect(),cut=Math.max(20,Math.min(80,((point?.x??innerWidth*.5)-rect.left)/rect.width*100));
+  const layer=document.createElement('div');layer.className='fracture-layer';layer.setAttribute('aria-hidden','true');layer.inert=true;
+  const seam=[[cut-2,0],[cut+1,22],[cut-2,43],[cut+2,61],[cut-1,80],[cut+2,100]];
+  const left='polygon(0% 0%, '+seam.map(([x,y])=>`${x}% ${y}%`).join(', ')+', 0% 100%)';
+  const right='polygon('+seam.map(([x,y])=>`${x}% ${y}%`).join(', ')+', 100% 100%, 100% 0%)';
+  if(!reduce.matches){for(let side=0;side<2;side++){const shell=document.createElement('div');shell.className='fracture-piece';shell.style.clipPath=side?right:left;shell.style.transformOrigin=side?'100% 50%':'0% 50%';const copy=old.cloneNode(true);copy.removeAttribute('id');copy.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));copy.classList.add('fracture-copy');const originals=[old,...old.querySelectorAll('*')],copies=[copy,...copy.querySelectorAll('*')];originals.forEach((el,i)=>{if(!el.getAnimations().length)return;const c=getComputedStyle(el);copies[i].style.animation='none';for(const prop of ['transform','translate','rotate','scale','opacity','filter','margin-top'])copies[i].style.setProperty(prop,c.getPropertyValue(prop));});copy.inert=true;shell.append(copy);layer.append(shell);}stage.append(layer);layer.querySelectorAll('.fracture-copy').forEach(copy=>copy.scrollTop=old.scrollTop);}
+  old.classList.remove('world-current');old.inert=true;old.setAttribute('aria-hidden','true');
+  next.classList.add('world-current');next.inert=true;next.setAttribute('aria-hidden','false');next.scrollTop=0;
+  root.classList.add('world-warping');
+  const animations=[...layer.children].map((piece,side)=>piece.animate([{transform:'rotateY(0deg)'},{transform:`rotateY(${side?-105:105}deg)`}],{duration:950,easing:'cubic-bezier(.65,0,.2,1)',fill:'forwards'}));
+  await Promise.allSettled(animations.map(a=>a.finished));
+  if(id!==sequence)return;layer.remove();current=index;busy=false;next.inert=false;root.classList.remove('world-warping');
+  buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));window.dispatchEvent(new CustomEvent('world-arrived',{detail:{index}}));const heading=next.querySelector('h2');heading.tabIndex=-1;heading.focus({preventScroll:true});window.dispatchEvent(new Event('resize'));
  }
  panel.addEventListener('click',e=>{const b=e.target.closest('[data-world]');if(b)go(Number(b.dataset.world));});
  document.querySelector('#universe-content').addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a||a.hasAttribute('data-return-portal'))return;const index=scenes.findIndex(s=>'#'+s.id===a.getAttribute('href'));if(index>=0){e.preventDefault();go(index);}});
