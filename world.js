@@ -11,8 +11,8 @@
   busy=true;const old=scenes[current],next=scenes[index];
   await Promise.allSettled([...next.querySelectorAll('img')].map(img=>img.decode?.()));
   // 下一场景渐入期间，旧场景始终保持完全不透明。
-  old.inert=true;next.scrollTop=0;next.classList.add('world-arriving');next.inert=true;next.setAttribute('aria-hidden','false');root.classList.add('world-warping');
-  if(!reduce.matches){const animation=next.animate([{opacity:0,transform:'scale(1.025)'},{opacity:1,transform:'scale(1)'}],{duration:800,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});await animation.finished.catch(()=>{});next.classList.add('world-current');next.classList.remove('world-arriving');animation.cancel();}else{next.classList.add('world-current');next.classList.remove('world-arriving');}
+  old.inert=true;next.scrollTop=0;next.classList.add('world-arriving');next.inert=true;next.setAttribute('aria-hidden','false');root.classList.add('world-warping');window.dispatchEvent(new CustomEvent('world-entering',{detail:{scene:next}}));
+  if(!reduce.matches){const animation=next.animate([{opacity:0},{opacity:1}],{duration:620,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});await animation.finished.catch(()=>{});next.classList.add('world-current');next.classList.remove('world-arriving');animation.cancel();}else{next.classList.add('world-current');next.classList.remove('world-arriving');}
   old.classList.remove('world-current');old.setAttribute('aria-hidden','true');current=index;busy=false;next.inert=false;root.classList.remove('world-warping');buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));window.dispatchEvent(new CustomEvent('world-arrived',{detail:{index}}));const heading=next.querySelector('h2');heading.tabIndex=-1;heading.focus({preventScroll:true});window.dispatchEvent(new Event('resize'));
  }
  panel.addEventListener('click',e=>{const b=e.target.closest('[data-world]');if(b)go(Number(b.dataset.world));});
