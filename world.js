@@ -4,16 +4,17 @@
  const names=['声音原野','共鸣海岸','好奇星系','下一站，小宇宙'];let current=0,busy=false,timer=0,sequence=0;
  const panel=document.createElement('div');panel.className='world-panel';panel.innerHTML='<span class="world-caption">小宇宙 · 声音漫游</span><nav aria-label="选择声音世界">'+names.map((n,i)=>`<button type="button" data-world="${i}" aria-pressed="${i===0}"><small>0${i+1}</small><span>${n}</span></button>`).join('')+'</nav><span class="world-help">选择坐标，进入另一片声音世界</span>';document.querySelector('#universe-content').append(panel);
  const buttons=[...panel.querySelectorAll('button')];
- scenes.forEach((s,i)=>{s.classList.add('world-scene');s.classList.toggle('world-current',i===0);s.inert=i!==0;s.setAttribute('aria-hidden',String(i!==0));s.querySelectorAll('.reveal').forEach(e=>e.classList.add('visible'));});
+ scenes.forEach((s,i)=>{s.querySelectorAll('img').forEach(img=>{img.loading='eager';});s.classList.add('world-scene');s.classList.toggle('world-current',i===0);s.inert=i!==0;s.setAttribute('aria-hidden',String(i!==0));s.querySelectorAll('.reveal').forEach(e=>e.classList.add('visible'));});
  root.classList.add('world-ready');
  async function go(index,point){
   if(index===current||busy||index<0||index>=scenes.length)return;
   busy=true;const old=scenes[current],next=scenes[index];
-  await Promise.allSettled([...next.querySelectorAll('img')].map(img=>img.decode?.()));
+  const images=[...next.querySelectorAll('img')];images.forEach(img=>{img.loading='eager';});
+  let loadTimer;await Promise.race([Promise.allSettled(images.map(img=>img.decode?.())),new Promise(resolve=>{loadTimer=setTimeout(resolve,1500);})]);clearTimeout(loadTimer);
   // 下一场景渐入期间，旧场景始终保持完全不透明。
   old.inert=true;next.scrollTop=0;next.classList.add('world-arriving');next.inert=true;next.setAttribute('aria-hidden','false');root.classList.add('world-warping');window.dispatchEvent(new CustomEvent('world-entering',{detail:{scene:next}}));
-  if(!reduce.matches){const animation=next.animate([{opacity:0},{opacity:1}],{duration:1100,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});await animation.finished.catch(()=>{});next.classList.add('world-current');next.classList.remove('world-arriving');animation.cancel();}else{next.classList.add('world-current');next.classList.remove('world-arriving');}
-  old.classList.remove('world-current');old.setAttribute('aria-hidden','true');current=index;busy=false;next.inert=false;root.classList.remove('world-warping');buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));window.dispatchEvent(new CustomEvent('world-arrived',{detail:{index}}));const heading=next.querySelector('h2');heading.tabIndex=-1;if(!point?.automatic)heading.focus({preventScroll:true});window.dispatchEvent(new Event('resize'));
+  try{if(!reduce.matches&&typeof next.animate==='function'){const animation=next.animate([{opacity:0},{opacity:1}],{duration:1100,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});await animation.finished.catch(()=>{});next.classList.add('world-current');next.classList.remove('world-arriving');animation.cancel();}else{next.classList.add('world-current');next.classList.remove('world-arriving');}}finally{next.classList.add('world-current');next.classList.remove('world-arriving');
+  old.classList.remove('world-current');old.setAttribute('aria-hidden','true');current=index;busy=false;next.inert=false;root.classList.remove('world-warping');buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));window.dispatchEvent(new CustomEvent('world-arrived',{detail:{index}}));const heading=next.querySelector('h2');heading.tabIndex=-1;if(!point?.automatic)heading.focus({preventScroll:true});window.dispatchEvent(new Event('resize'));}
  }
  window.addEventListener('film-next',()=>go((current+1)%4,{automatic:true}));
  panel.addEventListener('click',e=>{const b=e.target.closest('[data-world]');if(b)go(Number(b.dataset.world));});

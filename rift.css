@@ -2,3 +2,6 @@
 
 /* 平稳转场：全程保留旧画面底层，仅新画面渐入。 */
 .portal-entered.world-ready main{animation:none!important;mask-image:none!important;-webkit-mask-image:none!important}.world-ready .world-arriving{mask-image:none!important;-webkit-mask-image:none!important}.world-warping .world-current,.world-warping .world-arriving{animation:none!important;filter:none}.world-warping .world-current{opacity:1;transform:none}.world-ready .world-arriving .hero-copy,.world-ready .world-arriving .section-heading,.world-ready .world-arriving .explore-copy,.world-ready .world-arriving .download-content{animation:none!important}.world-warping .rift-orb{opacity:1}.world-warping header,.world-warping .world-panel{pointer-events:none}
+
+/* 触碰文字与气泡共同构成点击区域。 */
+.rift-orb{touch-action:manipulation}.rift-orb span{pointer-events:auto;padding:10px 0}.rift-particles{pointer-events:none!important}
