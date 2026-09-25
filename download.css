@@ -1,0 +1,8 @@
+/* 第四页使用原始星球海岸图，不再叠加调色与推镜。 */
+#download>img{filter:none!important;animation:none!important;transform:none!important;translate:none!important;scale:none!important;opacity:1;object-fit:cover;object-position:center center;will-change:auto!important}
+#download .download-shade{background:linear-gradient(90deg,rgba(9,16,32,.32) 0%,rgba(9,16,32,.12) 30%,transparent 55%)}
+#download:before,#download .scene-atmosphere{display:none!important}
+#download .download-content{transform:none;filter:none}
+#download .download-content h2,#download .download-content p,#download .download-content>.eyebrow,#download .download-content>small{text-shadow:0 2px 14px rgba(8,14,27,.45)}
+#download .footer-word{display:none}
+@media(max-width:700px){#download>img{object-position:60% center}#download .download-shade{background:linear-gradient(180deg,rgba(9,16,32,.24),transparent 65%)}}
